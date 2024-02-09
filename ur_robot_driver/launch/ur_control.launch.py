@@ -37,7 +37,83 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+import subprocess
+import os
+from ament_index_python.packages import get_package_share_directory
 
+def generate_urdf(workspace_path, output_dir, robot_type='ur5e', robot_ip='192.168.0.2'):
+    # Path to the xacro file
+    xacro_file = os.path.join(workspace_path, 'src', 'Universal_Robots_ROS2_Description', 'urdf', 'ur.urdf.xacro')
+
+    # Paths to configuration files
+    config_path = os.path.join(workspace_path, 'src', 'Universal_Robots_ROS2_Description', 'config', robot_type)
+    joint_limits_path = os.path.join(config_path, 'joint_limits.yaml')
+    kinematics_path = os.path.join(config_path, 'default_kinematics.yaml')
+    physical_params_path = os.path.join(config_path, 'physical_parameters.yaml')
+    visual_params_path = os.path.join(config_path, 'visual_parameters.yaml')
+    input_recipe_path = os.path.join(workspace_path, 'src', 'Universal_Robots_ROS2_Driver', 'ur_robot_driver', 'resources', 'rtde_input_recipe.txt')
+    output_recipe_path = os.path.join(workspace_path, 'src','Universal_Robots_ROS2_Driver', 'ur_robot_driver', 'resources', 'rtde_output_recipe.txt')
+    script_path = os.path.join(workspace_path, 'src', 'ur_client_library', 'resources', 'external_control.urscript')
+
+    # Other parameters
+    safety_limits = "true"
+    safety_pos_margin = "0.15"
+    safety_k_position = "20"
+    use_fake_hardware = "false"
+    fake_sensor_commands = "false"
+    headless_mode = "false"
+    use_tool_communication = "false"
+    tool_parity = "0"
+    tool_baud_rate = "115200"
+    tool_stop_bits = "1"
+    tool_rx_idle_chars = "1.5"
+    tool_tx_idle_chars = "3.5"
+    tool_device_name = "/tmp/ttyUR"
+    tool_tcp_port = "54321"
+    tool_voltage = "0"
+    reverse_ip = robot_ip
+    script_command_port = "50004"
+
+    # Construct the command
+    xacro_command = (
+        f"ros2 run xacro xacro {xacro_file} "
+        f"robot_ip:={robot_ip} "
+        f"joint_limit_params:={joint_limits_path} "
+        f"kinematics_params:={kinematics_path} "
+        f"physical_params:={physical_params_path} "
+        f"visual_params:={visual_params_path} "
+        f"safety_limits:={safety_limits} "
+        f"safety_pos_margin:={safety_pos_margin} "
+        f"safety_k_position:={safety_k_position} "
+        f"name:={robot_type} "
+        f"input_recipe_filename:={input_recipe_path} "
+        f"output_recipe_filename:={output_recipe_path} "
+        f"use_fake_hardware:={use_fake_hardware} "
+        f"fake_sensor_commands:={fake_sensor_commands} "
+        f"headless_mode:={headless_mode} "
+        f"use_tool_communication:={use_tool_communication} "
+        f"tool_parity:={tool_parity} "
+        f"tool_baud_rate:={tool_baud_rate} "
+        f"tool_stop_bits:={tool_stop_bits} "
+        f"tool_rx_idle_chars:={tool_rx_idle_chars} "
+        f"tool_tx_idle_chars:={tool_tx_idle_chars} "
+        f"tool_device_name:={tool_device_name} "
+        f"tool_tcp_port:={tool_tcp_port} "
+        f"tool_voltage:={tool_voltage} "
+        f"reverse_ip:={reverse_ip} "
+        f"script_command_port:={script_command_port}"
+    )
+
+    # Output file path
+    output_file = os.path.join(output_dir, f'{robot_type}_robot.urdf')
+
+    # Run the xacro command and write output to file
+    try:
+        with open(output_file, "w") as file:
+            subprocess.run(xacro_command, shell=True, check=True, stdout=file, text=True)
+        print(f"URDF file generated successfully at {output_file}")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while generating the URDF file: {e}")
 
 def launch_setup(context, *args, **kwargs):
 
@@ -185,18 +261,20 @@ def launch_setup(context, *args, **kwargs):
             "script_command_port:=",
             script_command_port,
             " ",
-            "reverse_port:=",
-            reverse_port,
-            " ",
-            "script_sender_port:=",
-            script_sender_port,
-            " ",
-            "trajectory_port:=",
-            trajectory_port,
-            " ",
         ]
     )
+
+    urdf_file_name = 'urdf/ur5e_urdf.urdf'
+    urdf = os.path.join(
+        get_package_share_directory('ur_description'),
+        urdf_file_name)
+    with open(urdf, 'r') as infp:
+        robot_desc = infp.read()
+
     robot_description = {"robot_description": robot_description_content}
+    
+
+    # generate_urdf('/home/krishna/moveit2_source_ws', '/home/krishna/moveit2_source_ws')
 
     initial_joint_controllers = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", controllers_file]

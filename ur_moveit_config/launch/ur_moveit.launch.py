@@ -39,6 +39,8 @@ from launch.substitutions import Command, FindExecutable, LaunchConfiguration, P
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from ur_moveit_config.launch_common import load_yaml
+import os
+from ament_index_python.packages import get_package_share_directory
 
 
 def launch_setup(context, *args, **kwargs):
@@ -119,7 +121,15 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    robot_description = {"robot_description": robot_description_content}
+
+    urdf_file_name = 'urdf/ur5e_urdf.urdf'
+    urdf = os.path.join(
+        get_package_share_directory('ur_description'),
+        urdf_file_name)
+    with open(urdf, 'r') as infp:
+        robot_desc = infp.read()
+
+    robot_description = {"robot_description": robot_desc}
 
     # MoveIt Configuration
     robot_description_semantic_content = Command(
@@ -140,7 +150,15 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    robot_description_semantic = {"robot_description_semantic": robot_description_semantic_content}
+
+    srdf_file_name = 'srdf/ur5e.srdf'
+    srdf = os.path.join(
+        get_package_share_directory('ur_moveit_config'),
+        srdf_file_name)
+    with open(srdf, 'r') as infp:
+        robot_sem = infp.read()
+
+    robot_description_semantic = {"robot_description_semantic": robot_sem}
 
     robot_description_kinematics = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
@@ -304,7 +322,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_file",
-            default_value="ur.urdf.xacro",
+            default_value="ur5e_urdf.urdf",
             description="URDF/XACRO description file with the robot.",
         )
     )
@@ -319,7 +337,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "moveit_config_file",
-            default_value="ur.srdf.xacro",
+            default_value="ur5e.srdf",
             description="MoveIt SRDF/XACRO description file with the robot.",
         )
     )
